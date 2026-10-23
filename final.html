@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoMA Architecture & Design Knowledge Graph Dashboard</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        moma: {
+                            purple: '#8b5cf6',
+                            pink: '#ec4899',
+                            blue: '#3b82f6',
+                            cyan: '#06b6d4',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Vis.js Network for Knowledge Graph -->
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Prompt', 'Inter', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Enhanced Glassmorphism Styling for Both Light & Dark Modes */
+        .glass-panel {
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .dark .glass-panel {
+            background: rgba(18, 24, 38, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        html:not(.dark) .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1.5px solid rgba(139, 92, 246, 0.22);
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.12), 0 8px 16px -6px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #8b5cf6;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ec4899;
+        }
+
+        /* Vis.js Custom Canvas Container */
+        #network-graph {
+            width: 100%;
+            height: 520px;
+            border-radius: 0.85rem;
+        }
+
+        /* Glowing Effects */
+        .glow-purple {
+            box-shadow: 0 0 18px rgba(139, 92, 246, 0.4);
+        }
+        .glow-pink {
+            box-shadow: 0 0 18px rgba(236, 72, 153, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-200 dark:border-slate-800 px-4 lg:px-8 py-3 mb-6">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            
+            <!-- Branding -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-500 to-cyan-400 flex items-center justify-center text-white font-black text-xl shadow-md glow-pink">
+                    M
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-extrabold bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 dark:from-purple-400 dark:via-pink-400 dark:to-cyan-300 bg-clip-text text-transparent" id="site-title">
+                        แดชบอร์ดความรู้สถาปัตยกรรมและการออกแบบ
+                    </h1>
+                    <p class="text-xs font-medium text-slate-600 dark:text-slate-400" id="site-subtitle">
+                        MoMA Architecture & Design Knowledge Graph Dashboard
+                    </p>
+                </div>
+            </div>
+
+            <!-- Global Controls (Language & Theme) -->
+            <div class="flex items-center space-x-3 self-end md:self-auto">
+                <!-- Language Switcher Toggle -->
+                <button id="lang-toggle-btn" onclick="toggleLanguage()" class="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-2 border border-slate-300 dark:border-slate-700 shadow-sm transition">
+                    <span id="lang-flag">🇹🇭</span>
+                    <span id="lang-label">TH / EN</span>
+                </button>
+
+                <!-- Theme Switcher Toggle -->
+                <button id="theme-toggle-btn" onclick="toggleTheme()" class="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-2 border border-slate-300 dark:border-slate-700 shadow-sm transition">
+                    <i id="theme-icon" class="fa-solid fa-moon text-purple-600 dark:text-purple-400"></i>
+                    <span id="theme-label">Dark</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Container -->
+    <main class="max-w-7xl mx-auto px-4 lg:px-8 pb-12 space-y-6">
+
+        <!-- Multi-Category Filter Bar -->
+        <section class="glass-panel rounded-2xl p-4 lg:p-6 transition-all">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-filter text-pink-600 dark:text-pink-400"></i>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-slate-100" id="filter-header-title">ตัวกรองข้อมูลหลายมิติ</h2>
+                </div>
+                <!-- Filter Status Count Badge -->
+                <div class="text-xs px-3.5 py-1 rounded-full bg-purple-500/10 dark:bg-purple-500/20 text-purple-900 dark:text-purple-300 font-bold border border-purple-500/30 w-fit">
+                    <span id="showing-text">กำลังแสดง</span> <strong id="filter-count">12</strong> <span id="from-total-text">จากทั้งหมด</span> <strong id="total-count">12</strong> <span id="items-unit-text">รายการ</span>
+                </div>
+            </div>
+
+            <!-- Filter Controls Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <!-- Search Input -->
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-xs"></i>
+                    <input type="text" id="search-input" oninput="applyFilters()" placeholder="ค้นหาชื่อผลงาน หรือ ID..." class="w-full pl-8 pr-3 py-2 text-xs font-medium rounded-xl bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition shadow-sm">
+                </div>
+
+                <!-- Artist Dropdown -->
+                <div>
+                    <select id="filter-artist" onchange="applyFilters()" class="w-full px-3 py-2 text-xs font-medium rounded-xl bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition shadow-sm">
+                        <option value="">สถาปนิก / ศิลปินทั้งหมด</option>
+                    </select>
+                </div>
+
+                <!-- Classification Dropdown -->
+                <div>
+                    <select id="filter-classification" onchange="applyFilters()" class="w-full px-3 py-2 text-xs font-medium rounded-xl bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition shadow-sm">
+                        <option value="">ประเภทผลงานทั้งหมด</option>
+                    </select>
+                </div>
+
+                <!-- Medium Dropdown -->
+                <div>
+                    <select id="filter-medium" onchange="applyFilters()" class="w-full px-3 py-2 text-xs font-medium rounded-xl bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition shadow-sm">
+                        <option value="">วัสดุ / สื่อทั้งหมด</option>
+                    </select>
+                </div>
+
+                <!-- Department Dropdown -->
+                <div>
+                    <select id="filter-department" onchange="applyFilters()" class="w-full px-3 py-2 text-xs font-medium rounded-xl bg-white dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition shadow-sm">
+                        <option value="">แผนกทั้งหมด</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Active Chips Container & Reset Button -->
+            <div id="active-chips-bar" class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800/80 flex flex-wrap items-center gap-2 hidden">
+                <span class="text-xs font-bold text-slate-700 dark:text-slate-300 mr-1" id="active-filters-text">ตัวกรองที่เลือก:</span>
+                <div id="chips-container" class="flex flex-wrap gap-2"></div>
+                <button onclick="resetFilters()" class="ml-auto text-xs text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:text-pink-300 underline font-bold cursor-pointer" id="reset-filters-btn">
+                    ล้างตัวกรองทั้งหมด
+                </button>
+            </div>
+        </section>
+
+        <!-- Overview KPI Summary Cards -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- KPI 1: Artworks -->
+            <div class="glass-panel rounded-2xl p-5 flex items-center justify-between border-l-4 border-l-pink-500 hover:translate-y-[-2px] transition duration-200">
+                <div>
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-400" id="kpi-artworks-label">ผลงานจัดแสดงทั้งหมด</p>
+                    <h3 id="kpi-artworks-val" class="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">12</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-pink-500/10 dark:bg-pink-500/20 text-pink-600 dark:text-pink-400 flex items-center justify-center text-xl border border-pink-500/30">
+                    <i class="fa-solid fa-cubes"></i>
+                </div>
+            </div>
+
+            <!-- KPI 2: Artists -->
+            <div class="glass-panel rounded-2xl p-5 flex items-center justify-between border-l-4 border-l-blue-500 hover:translate-y-[-2px] transition duration-200">
+                <div>
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-400" id="kpi-artists-label">สถาปนิก / ศิลปิน</p>
+                    <h3 id="kpi-artists-val" class="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">12</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl border border-blue-500/30">
+                    <i class="fa-solid fa-user-ninja"></i>
+                </div>
+            </div>
+
+            <!-- KPI 3: Mediums -->
+            <div class="glass-panel rounded-2xl p-5 flex items-center justify-between border-l-4 border-l-cyan-500 hover:translate-y-[-2px] transition duration-200">
+                <div>
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-400" id="kpi-mediums-label">วัสดุ / เทคนิคสร้างสรรค์</p>
+                    <h3 id="kpi-mediums-val" class="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">10</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center text-xl border border-cyan-500/30">
+                    <i class="fa-solid fa-palette"></i>
+                </div>
+            </div>
+
+            <!-- KPI 4: Classifications -->
+            <div class="glass-panel rounded-2xl p-5 flex items-center justify-between border-l-4 border-l-purple-500 hover:translate-y-[-2px] transition duration-200">
+                <div>
+                    <p class="text-xs font-bold text-slate-600 dark:text-slate-400" id="kpi-class-label">หมวดหมู่ผลงาน</p>
+                    <h3 id="kpi-class-val" class="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1">4</h3>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-purple-500/10 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl border border-purple-500/30">
+                    <i class="fa-solid fa-sitemap"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Knowledge Graph Visualization Area -->
+        <section class="glass-panel rounded-2xl p-4 lg:p-6 relative">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-base font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-diagram-project text-purple-600 dark:text-purple-400"></i>
+                        <span id="graph-title">เครือข่ายความสัมพันธ์เชิงความรู้ (Knowledge Graph)</span>
+                    </h2>
+                    <p class="text-xs font-medium text-slate-600 dark:text-slate-400 mt-0.5" id="graph-subtitle">แสดงความเชื่อมโยงระหว่าง ผลงาน (Pink), สถาปนิก (Blue), หมวดหมู่ (Purple), และ วัสดุ (Cyan)</p>
+                </div>
+
+                <!-- Controls for Graph -->
+                <div class="flex items-center gap-2">
+                    <button onclick="togglePhysics()" class="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-atom text-cyan-600 dark:text-cyan-400"></i>
+                        <span id="physics-btn-text">Physics: On</span>
+                    </button>
+                    <button onclick="resetGraphView()" class="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-expand text-pink-600 dark:text-pink-400"></i>
+                        <span id="recenter-btn-text">จัดกึ่งกลางมุมมอง</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Legend Bar -->
+            <div class="flex flex-wrap items-center gap-4 text-xs font-bold bg-slate-100/90 dark:bg-slate-900/60 p-3 rounded-xl mb-4 border border-slate-300 dark:border-slate-800">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#ec4899] inline-block shadow-sm"></span>
+                    <span id="legend-artwork" class="text-slate-800 dark:text-slate-200">ผลงาน (Artwork)</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#3b82f6] inline-block shadow-sm"></span>
+                    <span id="legend-artist" class="text-slate-800 dark:text-slate-200">สถาปนิก (Artist)</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#8b5cf6] inline-block shadow-sm"></span>
+                    <span id="legend-class" class="text-slate-800 dark:text-slate-200">ประเภท (Category)</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3.5 h-3.5 rounded-full bg-[#06b6d4] inline-block shadow-sm"></span>
+                    <span id="legend-medium" class="text-slate-800 dark:text-slate-200">วัสดุ (Medium)</span>
+                </div>
+            </div>
+
+            <!-- Vis.js Graph Canvas Container -->
+            <div id="network-graph" class="bg-slate-50 dark:bg-slate-950/60 border border-slate-300 dark:border-slate-800/80 shadow-inner"></div>
+        </section>
+
+        <!-- Visual Analytics Charts Area -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Chart 1: Bar Chart -->
+            <div class="glass-panel rounded-2xl p-5">
+                <h3 class="text-sm font-extrabold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-column text-blue-600 dark:text-blue-400"></i>
+                    <span id="chart-artist-title">จำนวนผลงานเด่นจำแนกตามสถาปนิก / ศิลปิน</span>
+                </h3>
+                <div class="relative h-64">
+                    <canvas id="artistChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Doughnut Chart -->
+            <div class="glass-panel rounded-2xl p-5">
+                <h3 class="text-sm font-extrabold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-pink-600 dark:text-pink-400"></i>
+                    <span id="chart-class-title">สัดส่วนประเภทผลงานทางสถาปัตยกรรม</span>
+                </h3>
+                <div class="relative h-64">
+                    <canvas id="classificationChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Catalog Table Area -->
+        <section class="glass-panel rounded-2xl p-4 lg:p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <h2 class="text-base font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-table text-cyan-600 dark:text-cyan-400"></i>
+                    <span id="table-header-title">รายการผลงานในฐานข้อมูล MoMA</span>
+                </h2>
+
+                <!-- Items per page selector -->
+                <div class="flex items-center gap-2 text-xs font-bold">
+                    <span class="text-slate-700 dark:text-slate-300" id="per-page-label">แสดงต่อหน้า:</span>
+                    <select id="per-page-select" onchange="changePerPage()" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2.5 py-1 focus:outline-none focus:border-purple-500 shadow-sm">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Responsive Table Container -->
+            <div class="overflow-x-auto rounded-xl border border-slate-300 dark:border-slate-800 bg-white/70 dark:bg-slate-900/40">
+                <table class="w-full text-left text-xs text-slate-800 dark:text-slate-200">
+                    <thead class="bg-slate-100 dark:bg-slate-900/90 text-slate-900 dark:text-slate-300 uppercase text-[11px] font-extrabold border-b border-slate-300 dark:border-slate-800">
+                        <tr>
+                            <th scope="col" class="p-3" id="th-accession">รหัส Accession</th>
+                            <th scope="col" class="p-3" id="th-title">ชื่อผลงาน</th>
+                            <th scope="col" class="p-3" id="th-artist">สถาปนิก / ศิลปิน</th>
+                            <th scope="col" class="p-3" id="th-class">ประเภท</th>
+                            <th scope="col" class="p-3" id="th-medium">วัสดุ / เทคนิค</th>
+                            <th scope="col" class="p-3 text-center" id="th-year">ปี ค.ศ.</th>
+                            <th scope="col" class="p-3 text-center" id="th-action">รายละเอียด</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-200 dark:divide-slate-800/60 font-medium">
+                        <!-- Dynamic Table Rows Injection -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Pagination Controls -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-200 dark:border-slate-800/80">
+                <div class="text-xs font-bold text-slate-700 dark:text-slate-300" id="pagination-info">
+                    กำลังแสดง 1 ถึง 10 จาก 12 รายการ
+                </div>
+                <div class="flex items-center gap-1.5" id="pagination-buttons">
+                    <!-- Dynamic Pagination Buttons -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Detail View Modal -->
+    <div id="detail-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+        <div class="glass-panel w-full max-w-2xl rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 shadow-2xl relative transform scale-95 transition-transform duration-300 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100" id="modal-container">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-purple-100 via-pink-100 to-white dark:from-purple-900/40 dark:via-pink-900/20 dark:to-slate-900">
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-0.5 rounded-full text-xs font-bold bg-pink-500/20 text-pink-700 dark:text-pink-300 border border-pink-500/30" id="modal-accession">
+                        84.1936
+                    </span>
+                    <h3 class="text-sm font-extrabold text-slate-900 dark:text-slate-100" id="modal-header-title">รายละเอียดผลงานสถาปัตยกรรม</h3>
+                </div>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content Body -->
+            <div class="p-5 max-h-[80vh] overflow-y-auto space-y-4">
+                <!-- Metadata Column -->
+                <div class="space-y-2 text-xs">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 id="modal-title-th" class="text-base font-extrabold text-slate-900 dark:text-slate-100"></h2>
+                            <h4 id="modal-title-en" class="text-xs text-pink-600 dark:text-pink-400 font-bold italic mb-2"></h4>
+                        </div>
+                        <span class="bg-slate-900/80 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700" id="modal-year-badge">1935</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                        <div>
+                            <span class="text-slate-500 dark:text-slate-400 block font-semibold" id="lbl-modal-artist">สถาปนิก / ศิลปิน:</span>
+                            <span id="modal-artist" class="font-bold text-slate-900 dark:text-slate-200"></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 dark:text-slate-400 block font-semibold" id="lbl-modal-class">ประเภท:</span>
+                            <span id="modal-class" class="font-bold text-purple-700 dark:text-purple-400"></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 dark:text-slate-400 block font-semibold" id="lbl-modal-medium">วัสดุ / เทคนิค:</span>
+                            <span id="modal-medium" class="font-bold text-cyan-700 dark:text-cyan-400"></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 dark:text-slate-400 block font-semibold" id="lbl-modal-dept">แผนกจัดเก็บ:</span>
+                            <span id="modal-dept" class="font-bold text-blue-700 dark:text-blue-400"></span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <span class="text-slate-500 dark:text-slate-400 block font-semibold" id="lbl-modal-dim">ขนาดผลงาน:</span>
+                        <span id="modal-dim" class="font-bold text-slate-800 dark:text-slate-300"></span>
+                    </div>
+                </div>
+
+                <!-- Description Text -->
+                <div class="pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <h4 class="text-xs font-bold text-slate-900 dark:text-slate-200 mb-1" id="lbl-modal-desc">คำอธิบายและประวัติศาสตร์:</h4>
+                    <p id="modal-desc" class="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed bg-slate-50 dark:bg-slate-950/50 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800/80"></p>
+                </div>
+
+                <!-- Connected Graph Tags -->
+                <div class="pt-2">
+                    <h4 class="text-xs font-bold text-slate-900 dark:text-slate-200 mb-2" id="lbl-modal-tags">โหนดความสัมพันธ์ในเครือข่าย:</h4>
+                    <div id="modal-node-tags" class="flex flex-wrap gap-1.5 font-bold"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // Comprehensive MoMA Architecture & Design Knowledge Dataset (Images Removed)
+        const artworkData = [
+            {
+                id: "moma_001",
+                accessionNo: "84.1936",
+                title: { th: "บ้านฟอลลิงวอเตอร์ (Fallingwater)", en: "Fallingwater (Edgar J. Kaufmann House)" },
+                artist: { id: "art_flw", th: "แฟรงก์ ลอยด์ ไรต์", en: "Frank Lloyd Wright" },
+                classification: { id: "cls_arch", th: "แบบจำลองสถาปัตยกรรม", en: "Architectural Model" },
+                medium: { id: "med_wood", th: "ไม้ วอลนัต และอะคริลิก", en: "Wood, walnut, and acrylic" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1935",
+                dimensions: "121.9 x 152.4 x 91.4 cm",
+                description: {
+                    th: "ผลงานระดับตำนานของแฟรงก์ ลอยด์ ไรต์ ที่ผสานโครงสร้างคอนกรีตเสริมเหล็กยื่นผาหินเหนือน้ำตกอย่างกลมกลืนกับธรรมชาติแบบ Organic Architecture",
+                    en: "Frank Lloyd Wright's masterpiece built over a waterfall in rural Pennsylvania, exemplifying organic architecture through cantilevered concrete trays."
+                }
+            },
+            {
+                id: "moma_002",
+                accessionNo: "163.1998",
+                title: { th: "บ้านฟาร์นสเวิร์ธ (Farnsworth House)", en: "Farnsworth House, Plano, Illinois" },
+                artist: { id: "art_mies", th: "ลุดวิก มีส ฟาน เดอร์ โรเออ", en: "Ludwig Mies van der Rohe" },
+                classification: { id: "cls_arch", th: "แบบจำลองสถาปัตยกรรม", en: "Architectural Model" },
+                medium: { id: "med_steel", th: "เหล็ก พลาสติก และกระจก", en: "Steel, plastic, and glass" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1945",
+                dimensions: "61.0 x 122.0 x 45.7 cm",
+                description: {
+                    th: "การตีความสถาปัตยกรรมสไตล์โมเดิร์นแบบ Less is More ด้วยโครงสร้างกล่องกระจกใสลอยตัวเหนือพื้นดินได้อย่างสมบูรณ์แบบ",
+                    en: "An icon of Modernist architecture featuring a clear glass box suspended above ground, embodying 'Less is More'."
+                }
+            },
+            {
+                id: "moma_003",
+                accessionNo: "412.1984",
+                title: { th: "วิลล่า ซาวอย (Villa Savoye)", en: "Villa Savoye, Poissy, France" },
+                artist: { id: "art_corbu", th: "เลอ คอร์บูซิเยร์", en: "Le Corbusier" },
+                classification: { id: "cls_draw", th: "ภาพเขียนแบบสถาปัตยกรรม", en: "Architectural Drawing" },
+                medium: { id: "med_ink", th: "หมึกและสีน้ำบนกระดาษ", en: "Ink and watercolor on paper" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1929",
+                dimensions: "75.0 x 105.0 cm",
+                description: {
+                    th: "แบบวาดนำเสนอหลักการสถาปัตยกรรม 5 ประการของเลอ คอร์บูซิเยร์ เช่น เสาลอยตัว ผังเปิด และหลังคาสวน",
+                    en: "Original drawing illustrating Le Corbusier's Five Points of Modern Architecture including pilotis, open plan, and roof garden."
+                }
+            },
+            {
+                id: "moma_004",
+                accessionNo: "721.2010",
+                title: { th: "เดอะ พีค เลเชอร์ คลับ (The Peak)", en: "The Peak Leisure Club, Hong Kong" },
+                artist: { id: "art_zaha", th: "ซาฮา ฮาดิด", en: "Zaha Hadid" },
+                classification: { id: "cls_render", th: "จิตรกรรมสถาปัตยกรรมแนวทฤษฎี", en: "Theoretical Render Painting" },
+                medium: { id: "med_acrylic", th: "สีอะคริลิกบนผืนผ้าใบ", en: "Acrylic on canvas" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1983",
+                dimensions: "140.0 x 200.0 cm",
+                description: {
+                    th: "ผลงานการออกแบบชนะการประกวดระดับนานาชาติของซาฮา ฮาดิด ที่ใช้รูปทรงเรขาคณิตระเบิดซ้อนชั้นสะท้อนสไตล์ Deconstructivism",
+                    en: "International competition winning painting showcasing Zaha Hadid's dynamic deconstructivist fragmentations."
+                }
+            },
+            {
+                id: "moma_005",
+                accessionNo: "205.1967",
+                title: { th: "เก้าอี้เลานจ์และออตโตแมน (Eames Lounge Chair)", en: "Eames Lounge Chair and Ottoman" },
+                artist: { id: "art_eames", th: "ชาลส์ และ เรย์ อีมส์", en: "Charles and Ray Eames" },
+                classification: { id: "cls_furn", th: "เฟอร์นิเจอร์และผลิตภัณฑ์", en: "Furniture Design" },
+                medium: { id: "med_plywood", th: "ไม้ดัดโค้ง หนัง และอลูมิเนียม", en: "Molded plywood, leather, aluminum" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1956",
+                dimensions: "84.5 x 83.8 x 83.8 cm",
+                description: {
+                    th: "เก้าอี้พักผ่อนระดับตำนานที่ผสมผสานความประณีตของไม้อัดดัดโค้งกับหนังแท้ มอบความสบายและการออกแบบอุตสาหกรรมอันทันสมัย",
+                    en: "Iconic mid-century modern lounge chair merging molded plywood craftsmanship with plush leather luxury."
+                }
+            },
+            {
+                id: "moma_006",
+                accessionNo: "889.2001",
+                title: { th: "สถาบันซอล์ก (Salk Institute)", en: "Salk Institute for Biological Studies" },
+                artist: { id: "art_kahn", th: "หลุยส์ คาห์น", en: "Louis Kahn" },
+                classification: { id: "cls_arch", th: "แบบจำลองสถาปัตยกรรม", en: "Architectural Model" },
+                medium: { id: "med_concrete", th: "คอนกรีต ไม้สัก และหินอ่อน", en: "Concrete, teak, and marble" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1965",
+                dimensions: "90.0 x 150.0 x 40.0 cm",
+                description: {
+                    th: "ศูนย์วิจัยที่ผสานความอลังการของคอนกรีตเปลือย ลานหินอ่อน และช่องน้ำลอยไปสู่เส้นขอบฟ้ามหาสมุทรแปซิฟิก",
+                    en: "Monumental research facility featuring exposed concrete, teak window panels, and a central water channel reaching the Pacific."
+                }
+            },
+            {
+                id: "moma_007",
+                accessionNo: "510.1953",
+                title: { th: "บ้านรีตเฟลด์ ชโรเดอร์ (Rietveld Schröder House)", en: "Rietveld Schröder House, Utrecht" },
+                artist: { id: "art_rietveld", th: "เกอร์ริต รีตเฟลด์", en: "Gerrit Rietveld" },
+                classification: { id: "cls_arch", th: "แบบจำลองสถาปัตยกรรม", en: "Architectural Model" },
+                medium: { id: "med_wood", th: "ไม้ ทำสี แม่สี (De Stijl)", en: "Painted wood and primary color accents" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1924",
+                dimensions: "50.0 x 60.0 x 45.0 cm",
+                description: {
+                    th: "สถาปัตยกรรมชิ้นสำคัญของขบวนการ De Stijl ที่ใช้เส้นสาย และแม่สี (แดง น้ำเงิน เหลือง) สร้างสเปซที่ยืดหยุ่นได้",
+                    en: "Masterpiece of De Stijl movement using primary colors, dynamic planes, and transformable spatial layouts."
+                }
+            },
+            {
+                id: "moma_008",
+                accessionNo: "302.1962",
+                title: { th: "อาคารผู้โดยสาร TWA Flight Center", en: "TWA Flight Center at JFK Airport" },
+                artist: { id: "art_saarinen", th: "เอโร ซาริเนน", en: "Eero Saarinen" },
+                classification: { id: "cls_arch", th: "แบบจำลองสถาปัตยกรรม", en: "Architectural Model" },
+                medium: { id: "med_concrete", th: "คอนกรีตหล่อและเรซิน", en: "Cast concrete and resin" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1962",
+                dimensions: "110.0 x 130.0 x 50.0 cm",
+                description: {
+                    th: "อาคารสนามบินรูปทรงปีกนกที่ใช้โครงสร้างเปลือกคอนกรีตบาง (Thin-shell concrete) สะท้อนความก้าวหน้าแห่งยุคเจ็ท",
+                    en: "Organic thin-shell concrete structure evoking the spirit of flight and futuristic space-age optimism."
+                }
+            },
+            {
+                id: "moma_009",
+                accessionNo: "118.1939",
+                title: { th: "เก้าอี้อาร์มแชร์ Paimio 41", en: "Paimio Armchair 41" },
+                artist: { id: "art_aalto", th: "อัลวาร์ อาอัลโต", en: "Alvar Aalto" },
+                classification: { id: "cls_furn", th: "เฟอร์นิเจอร์และผลิตภัณฑ์", en: "Furniture Design" },
+                medium: { id: "med_plywood", th: "ไม้เบิร์ชดัดโค้งมน", en: "Bended birch plywood" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1932",
+                dimensions: "60.0 x 64.0 x 80.0 cm",
+                description: {
+                    th: "เก้าอี้ไม้อัดดัดดึงดูดสายตา ออกแบบสำหรับสถานพักฟื้นผู้ป่วยปอด Paimio Sanatorium ผสานออร์แกนิกและความอบอุ่น",
+                    en: "Organic bended birch armchair crafted for tuberculosis patients, defining Nordic humanistic design."
+                }
+            },
+            {
+                id: "moma_010",
+                accessionNo: "950.2008",
+                title: { th: "อาคารสำนักงานใหญ่ CCTV", en: "CCTV Headquarters, Beijing" },
+                artist: { id: "art_rem", th: "เรม คูลฮาส / OMA", en: "Rem Koolhaas / OMA" },
+                classification: { id: "cls_arch", th: "แบบจำลองสถาปัตยกรรม", en: "Architectural Model" },
+                medium: { id: "med_steel", th: "เหล็กกล้า อะคริลิก และไฟ LED", en: "Steel mesh, acrylic, LED lights" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "2002",
+                dimensions: "100.0 x 100.0 x 140.0 cm",
+                description: {
+                    th: "ตึกระฟ้าต้านแรงโน้มถ่วงรูปทรงห่วงวงปิด (Continuous Loop) ความท้าทายทางวิศวกรรมสถาปัตยกรรมร่วมสมัย",
+                    en: "Anti-heroic structural loop skyscraper challenging traditional high-rise verticality in Beijing."
+                }
+            },
+            {
+                id: "moma_011",
+                accessionNo: "630.1995",
+                title: { th: "โบสถ์แห่งแสง (Church of the Light)", en: "Church of the Light, Osaka" },
+                artist: { id: "art_ando", th: "ทาดาโอะ อันโดะ", en: "Tadao Ando" },
+                classification: { id: "cls_arch", th: "แบบจำลองสถาปัตยกรรม", en: "Architectural Model" },
+                medium: { id: "med_concrete", th: "คอนกรีตปัดผิวและแก้ว", en: "Smooth poured concrete and glass" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "1989",
+                dimensions: "45.0 x 70.0 x 35.0 cm",
+                description: {
+                    th: "สถาปัตยกรรมมินิมอลลิสต์ที่ใช้ช่องว่างรูปกากบาทบนผนังคอนกรีตเปิดให้แสงธรรมชาติส่องสว่างสร้างความสงบสติอารมณ์",
+                    en: "Minimalist concrete chapel defined by a cruciform wall opening that shapes dramatic natural lighting."
+                }
+            },
+            {
+                id: "moma_012",
+                accessionNo: "788.2012",
+                title: { th: "ศูนย์การเรียนรู้ Rolex Learning Center", en: "Rolex Learning Center, EPFL" },
+                artist: { id: "art_sanaa", th: "SANAA (เซจิมะ & นิชิซาวะ)", en: "SANAA (Sejima & Nishizawa)" },
+                classification: { id: "cls_arch", th: "แบบจำลองสถาปัตยกรรม", en: "Architectural Model" },
+                medium: { id: "med_steel", th: "อลูมิเนียม คอนกรีต และกระจกโค้ง", en: "Aluminum, concrete, curved glass" },
+                department: { th: "สถาปัตยกรรมและการออกแบบ", en: "Architecture & Design" },
+                year: "2010",
+                dimensions: "130.0 x 130.0 x 25.0 cm",
+                description: {
+                    th: "อาคารผืนเดียวลูกคลื่นลื่นไหลไร้ผนังกั้น เปิดโอกาสให้ผู้ใช้งานเกิดการปฏิสัมพันธ์และค้นพบความรู้อย่างอิสระ",
+                    en: "Undulating organic single-space landscape creating seamless social and educational interaction spaces."
+                }
+            }
+        ];
+
+        // State Management with Persistence
+        let currentLang = localStorage.getItem('moma-lang') || 'th';
+        let currentTheme = localStorage.getItem('moma-theme') || 'dark';
+        let filteredData = [...artworkData];
+        let currentPage = 1;
+        let itemsPerPage = 10;
+        
+        // Vis.js Network & Chart Instances
+        let network = null;
+        let networkNodes = null;
+        let networkEdges = null;
+        let physicsEnabled = true;
+        let artistChart = null;
+        let classificationChart = null;
+
+        // Node Color Mappings for Graph
+        const nodeColors = {
+            artwork: { bg: '#ec4899', border: '#db2777', highlight: '#f43f5e' },
+            artist: { bg: '#3b82f6', border: '#2563eb', highlight: '#1d4ed8' },
+            classification: { bg: '#8b5cf6', border: '#7c3aed', highlight: '#6d28d9' },
+            medium: { bg: '#06b6d4', border: '#0891b2', highlight: '#0e7490' }
+        };
+
+        // Translation Dictionary
+        const i18n = {
+            th: {
+                siteTitle: "แดชบอร์ดความรู้สถาปัตยกรรมและการออกแบบ",
+                siteSub: "MoMA Architecture & Design Knowledge Graph Dashboard",
+                searchPlaceholder: "ค้นหาชื่อผลงาน หรือ รหัส ID...",
+                filterArtist: "สถาปนิก / ศิลปินทั้งหมด",
+                filterClassification: "ประเภทผลงานทั้งหมด",
+                filterMedium: "วัสดุ / สื่อทั้งหมด",
+                filterDepartment: "แผนกทั้งหมด",
+                activeFiltersText: "ตัวกรองที่เลือก:",
+                resetFilters: "ล้างตัวกรองทั้งหมด",
+                showingText: "กำลังแสดง",
+                fromTotalText: "จากทั้งหมด",
+                itemsUnitText: "รายการ",
+                kpiArtworks: "ผลงานจัดแสดงทั้งหมด",
+                kpiArtists: "สถาปนิก / ศิลปิน",
+                kpiMediums: "วัสดุ / เทคนิคสร้างสรรค์",
+                kpiClassifications: "หมวดหมู่ผลงาน",
+                graphTitle: "เครือข่ายความสัมพันธ์เชิงความรู้ (Knowledge Graph)",
+                graphSub: "แสดงความเชื่อมโยงระหว่าง ผลงาน (Pink), สถาปนิก (Blue), หมวดหมู่ (Purple), และ วัสดุ (Cyan)",
+                legendArtwork: "ผลงาน (Artwork)",
+                legendArtist: "สถาปนิก (Artist)",
+                legendClass: "ประเภท (Category)",
+                legendMedium: "วัสดุ (Medium)",
+                physicsOn: "Physics: On",
+                physicsOff: "Physics: Off",
+                recenterBtn: "จัดกึ่งกลางมุมมอง",
+                chartArtistTitle: "จำนวนผลงานเด่นจำแนกตามสถาปนิก / ศิลปิน",
+                chartClassTitle: "สัดส่วนประเภทผลงานทางสถาปัตยกรรม",
+                tableHeaderTitle: "รายการผลงานในฐานข้อมูล MoMA",
+                perPageLabel: "แสดงต่อหน้า:",
+                thAccession: "รหัส Accession",
+                thTitle: "ชื่อผลงาน",
+                thArtist: "สถาปนิก / ศิลปิน",
+                thClass: "ประเภท",
+                thMedium: "วัสดุ / เทคนิค",
+                thYear: "ปี ค.ศ.",
+                thAction: "รายละเอียด",
+                viewDetails: "ดูข้อมูล",
+                modalHeaderTitle: "รายละเอียดผลงานสถาปัตยกรรม",
+                lblModalArtist: "สถาปนิก / ศิลปิน:",
+                lblModalClass: "ประเภท:",
+                lblModalMedium: "วัสดุ / เทคนิค:",
+                lblModalDept: "แผนกจัดเก็บ:",
+                lblModalDim: "ขนาดผลงาน:",
+                lblModalDesc: "คำอธิบายและประวัติศาสตร์:",
+                lblModalTags: "โหนดความสัมพันธ์ในเครือข่าย:"
+            },
+            en: {
+                siteTitle: "Architecture & Design Knowledge Graph Dashboard",
+                siteSub: "MoMA Collection Analysis & Interactive Graph",
+                searchPlaceholder: "Search artwork title or Accession ID...",
+                filterArtist: "All Architects / Artists",
+                filterClassification: "All Classifications",
+                filterMedium: "All Mediums / Materials",
+                filterDepartment: "All Departments",
+                activeFiltersText: "Active Filters:",
+                resetFilters: "Reset All Filters",
+                showingText: "Showing",
+                fromTotalText: "of",
+                itemsUnitText: "items",
+                kpiArtworks: "Total Artworks",
+                kpiArtists: "Architects / Artists",
+                kpiMediums: "Mediums & Materials",
+                kpiClassifications: "Classifications",
+                graphTitle: "Interactive Knowledge Graph Network",
+                graphSub: "Graph Connections: Artwork (Pink), Artist (Blue), Category (Purple), Medium (Cyan)",
+                legendArtwork: "Artwork",
+                legendArtist: "Architect",
+                legendClass: "Classification",
+                legendMedium: "Medium",
+                physicsOn: "Physics: On",
+                physicsOff: "Physics: Off",
+                recenterBtn: "Re-center Graph",
+                chartArtistTitle: "Top Architects / Artists Work Count",
+                chartClassTitle: "Classification Breakdown",
+                tableHeaderTitle: "MoMA Collection Data Catalog",
+                perPageLabel: "Items per page:",
+                thAccession: "Accession ID",
+                thTitle: "Artwork Title",
+                thArtist: "Architect / Artist",
+                thClass: "Classification",
+                thMedium: "Medium",
+                thYear: "Year",
+                thAction: "Action",
+                viewDetails: "View Details",
+                modalHeaderTitle: "Artwork Specification Details",
+                lblModalArtist: "Architect / Artist:",
+                lblModalClass: "Classification:",
+                lblModalMedium: "Medium / Material:",
+                lblModalDept: "Department:",
+                lblModalDim: "Dimensions:",
+                lblModalDesc: "Description & History:",
+                lblModalTags: "Connected Graph Nodes:"
+            }
+        };
+
+        // Initialize App on DOM Loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            applyInitialTheme();
+            populateFilterDropdowns();
+            renderUI();
+            initCharts();
+            initKnowledgeGraph();
+            updateLanguageUI();
+        });
+
+        // Apply saved theme state
+        function applyInitialTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeLabel = document.getElementById('theme-label');
+
+            if (currentTheme === 'light') {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                document.body.classList.replace('bg-[#0b0f19]', 'bg-slate-100');
+                document.body.classList.replace('text-slate-100', 'text-slate-900');
+                themeIcon.className = 'fa-solid fa-sun text-amber-500';
+                themeLabel.textContent = 'Light';
+            } else {
+                html.classList.remove('light');
+                html.classList.add('dark');
+                document.body.classList.replace('bg-slate-100', 'bg-[#0b0f19]');
+                document.body.classList.replace('text-slate-900', 'text-slate-100');
+                themeIcon.className = 'fa-solid fa-moon text-purple-400';
+                themeLabel.textContent = 'Dark';
+            }
+        }
+
+        // Populate Dynamic Dropdowns based on Data
+        function populateFilterDropdowns() {
+            const artistSelect = document.getElementById('filter-artist');
+            const classSelect = document.getElementById('filter-classification');
+            const mediumSelect = document.getElementById('filter-medium');
+            const deptSelect = document.getElementById('filter-department');
+
+            const artistsMap = new Map();
+            const classMap = new Map();
+            const mediumMap = new Map();
+            const deptMap = new Map();
+
+            artworkData.forEach(item => {
+                artistsMap.set(item.artist.id, item.artist);
+                classMap.set(item.classification.id, item.classification);
+                mediumMap.set(item.medium.id, item.medium);
+                deptMap.set(item.department.en, item.department);
+            });
+
+            artistsMap.forEach((val, id) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = val[currentLang];
+                artistSelect.appendChild(opt);
+            });
+
+            classMap.forEach((val, id) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = val[currentLang];
+                classSelect.appendChild(opt);
+            });
+
+            mediumMap.forEach((val, id) => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = val[currentLang];
+                mediumSelect.appendChild(opt);
+            });
+
+            deptMap.forEach((val, key) => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = val[currentLang];
+                deptSelect.appendChild(opt);
+            });
+        }
+
+        // Apply Multi-Category Filters & Updates
+        function applyFilters() {
+            const searchVal = document.getElementById('search-input').value.toLowerCase().trim();
+            const artistVal = document.getElementById('filter-artist').value;
+            const classVal = document.getElementById('filter-classification').value;
+            const mediumVal = document.getElementById('filter-medium').value;
+            const deptVal = document.getElementById('filter-department').value;
+
+            filteredData = artworkData.filter(item => {
+                const titleMatch = item.title.th.toLowerCase().includes(searchVal) || 
+                                   item.title.en.toLowerCase().includes(searchVal) || 
+                                   item.accessionNo.toLowerCase().includes(searchVal);
+                const artistMatch = !artistVal || item.artist.id === artistVal;
+                const classMatch = !classVal || item.classification.id === classVal;
+                const mediumMatch = !mediumVal || item.medium.id === mediumVal;
+                const deptMatch = !deptVal || item.department.en === deptVal;
+
+                return titleMatch && artistMatch && classMatch && mediumMatch && deptMatch;
+            });
+
+            currentPage = 1;
+            renderUI();
+            updateCharts();
+            updateKnowledgeGraph();
+            renderActiveChips();
+        }
+
+        // Render Active Filter Chips
+        function renderActiveChips() {
+            const chipsBar = document.getElementById('active-chips-bar');
+            const chipsContainer = document.getElementById('chips-container');
+            chipsContainer.innerHTML = '';
+
+            const searchVal = document.getElementById('search-input').value.trim();
+            const artistVal = document.getElementById('filter-artist').value;
+            const classVal = document.getElementById('filter-classification').value;
+            const mediumVal = document.getElementById('filter-medium').value;
+            const deptVal = document.getElementById('filter-department').value;
+
+            let activeCount = 0;
+
+            const addChip = (label, clearFn) => {
+                activeCount++;
+                const chip = document.createElement('div');
+                chip.className = 'px-3 py-1 rounded-lg text-[11px] font-bold bg-purple-500/10 dark:bg-purple-500/20 text-purple-900 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1.5 shadow-sm';
+                chip.innerHTML = `<span>${label}</span><i class="fa-solid fa-xmark hover:text-pink-600 dark:hover:text-white cursor-pointer ml-1"></i>`;
+                chip.querySelector('i').onclick = clearFn;
+                chipsContainer.appendChild(chip);
+            };
+
+            if (searchVal) addChip(`🔍 "${searchVal}"`, () => { document.getElementById('search-input').value = ''; applyFilters(); });
+            if (artistVal) {
+                const item = artworkData.find(a => a.artist.id === artistVal);
+                if (item) addChip(`👤 ${item.artist[currentLang]}`, () => { document.getElementById('filter-artist').value = ''; applyFilters(); });
+            }
+            if (classVal) {
+                const item = artworkData.find(a => a.classification.id === classVal);
+                if (item) addChip(`📐 ${item.classification[currentLang]}`, () => { document.getElementById('filter-classification').value = ''; applyFilters(); });
+            }
+            if (mediumVal) {
+                const item = artworkData.find(a => a.medium.id === mediumVal);
+                if (item) addChip(`🎨 ${item.medium[currentLang]}`, () => { document.getElementById('filter-medium').value = ''; applyFilters(); });
+            }
+            if (deptVal) {
+                const item = artworkData.find(a => a.department.en === deptVal);
+                if (item) addChip(`🏛️ ${item.department[currentLang]}`, () => { document.getElementById('filter-department').value = ''; applyFilters(); });
+            }
+
+            if (activeCount > 0) {
+                chipsBar.classList.remove('hidden');
+            } else {
+                chipsBar.classList.add('hidden');
+            }
+        }
+
+        // Reset All Filters
+        function resetFilters() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('filter-artist').value = '';
+            document.getElementById('filter-classification').value = '';
+            document.getElementById('filter-medium').value = '';
+            document.getElementById('filter-department').value = '';
+            applyFilters();
+        }
+
+        // Render Page UI (Table, KPIs, Static texts)
+        function renderUI() {
+            // Filter status & counts
+            document.getElementById('filter-count').textContent = filteredData.length;
+            document.getElementById('total-count').textContent = artworkData.length;
+
+            // KPI Counts
+            const uniqueArtists = new Set(filteredData.map(d => d.artist.id)).size;
+            const uniqueMediums = new Set(filteredData.map(d => d.medium.id)).size;
+            const uniqueClass = new Set(filteredData.map(d => d.classification.id)).size;
+
+            document.getElementById('kpi-artworks-val').textContent = filteredData.length;
+            document.getElementById('kpi-artists-val').textContent = uniqueArtists;
+            document.getElementById('kpi-mediums-val').textContent = uniqueMediums;
+            document.getElementById('kpi-class-val').textContent = uniqueClass;
+
+            renderTable();
+        }
+
+        // Render Table and Pagination
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            const total = filteredData.length;
+            const totalPages = Math.ceil(total / itemsPerPage) || 1;
+
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIdx = (currentPage - 1) * itemsPerPage;
+            const endIdx = Math.min(startIdx + itemsPerPage, total);
+            const pageItems = filteredData.slice(startIdx, endIdx);
+
+            if (pageItems.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-slate-500 font-bold italic">
+                            <i class="fa-solid fa-folder-open text-2xl mb-2 block"></i>
+                            ไม่พบข้อมูลผลงานที่ตรงตามตัวกรองที่เลือก
+                        </td>
+                    </tr>
+                `;
+            } else {
+                pageItems.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-100/80 dark:hover:bg-slate-800/40 transition duration-150 border-b border-slate-200 dark:border-slate-800/60';
+                    tr.innerHTML = `
+                        <td class="p-3 font-mono text-[11px] font-black text-pink-600 dark:text-pink-400">${item.accessionNo}</td>
+                        <td class="p-3">
+                            <div class="font-extrabold text-slate-900 dark:text-slate-100">${item.title[currentLang]}</div>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400 italic font-semibold">${item.title[currentLang === 'th' ? 'en' : 'th']}</div>
+                        </td>
+                        <td class="p-3 font-bold text-blue-700 dark:text-blue-300">${item.artist[currentLang]}</td>
+                        <td class="p-3">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/10 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-500/30">
+                                ${item.classification[currentLang]}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-900 dark:text-cyan-300 border border-cyan-500/30">
+                                ${item.medium[currentLang]}
+                            </span>
+                        </td>
+                        <td class="p-3 text-center font-mono font-extrabold text-slate-800 dark:text-slate-200">${item.year}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="openModal('${item.id}')" class="px-3 py-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-[11px] font-extrabold shadow-sm transition">
+                                <i class="fa-solid fa-circle-info mr-1"></i>${i18n[currentLang].viewDetails}
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Pagination Text & Controls
+            const pageInfo = document.getElementById('pagination-info');
+            pageInfo.textContent = `${i18n[currentLang].showingText} ${total === 0 ? 0 : startIdx + 1} - ${endIdx} ${i18n[currentLang].fromTotalText} ${total} ${i18n[currentLang].itemsUnitText}`;
+
+            renderPaginationButtons(totalPages);
+        }
+
+        // Render Pagination Buttons
+        function renderPaginationButtons(totalPages) {
+            const btnContainer = document.getElementById('pagination-buttons');
+            btnContainer.innerHTML = '';
+
+            const prevBtn = document.createElement('button');
+            prevBtn.className = `px-3 py-1 rounded-lg text-xs font-bold border ${currentPage === 1 ? 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm'}`;
+            prevBtn.innerHTML = `<i class="fa-solid fa-chevron-left"></i>`;
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; renderTable(); } };
+            btnContainer.appendChild(prevBtn);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const pBtn = document.createElement('button');
+                pBtn.className = `px-3.5 py-1 rounded-lg text-xs font-extrabold ${i === currentPage ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md' : 'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm'}`;
+                pBtn.textContent = i;
+                pBtn.onclick = () => { currentPage = i; renderTable(); };
+                btnContainer.appendChild(pBtn);
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = `px-3 py-1 rounded-lg text-xs font-bold border ${currentPage === totalPages || totalPages === 0 ? 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed' : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm'}`;
+            nextBtn.innerHTML = `<i class="fa-solid fa-chevron-right"></i>`;
+            nextBtn.disabled = currentPage === totalPages || totalPages === 0;
+            nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; renderTable(); } };
+            btnContainer.appendChild(nextBtn);
+        }
+
+        function changePerPage() {
+            itemsPerPage = parseInt(document.getElementById('per-page-select').value);
+            currentPage = 1;
+            renderTable();
+        }
+
+        // Vis.js Interactive Knowledge Graph Network
+        function initKnowledgeGraph() {
+            const container = document.getElementById('network-graph');
+
+            networkNodes = new vis.DataSet();
+            networkEdges = new vis.DataSet();
+
+            const data = {
+                nodes: networkNodes,
+                edges: networkEdges
+            };
+
+            const options = {
+                nodes: {
+                    borderWidth: 2,
+                    shadow: true,
+                    font: {
+                        color: currentTheme === 'dark' ? '#f8fafc' : '#0f172a',
+                        face: 'Prompt, Inter, sans-serif',
+                        size: 12,
+                        bold: true
+                    }
+                },
+                edges: {
+                    width: 1.5,
+                    color: { color: currentTheme === 'dark' ? 'rgba(139, 92, 246, 0.4)' : 'rgba(139, 92, 246, 0.6)', highlight: '#ec4899', hover: '#06b6d4' },
+                    smooth: { type: 'continuous' }
+                },
+                physics: {
+                    enabled: physicsEnabled,
+                    barnesHut: {
+                        gravitationalConstant: -3200,
+                        centralGravity: 0.3,
+                        springLength: 95,
+                        springConstant: 0.04
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 150
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            network.on("click", function (params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    if (nodeId.startsWith('moma_')) {
+                        openModal(nodeId);
+                    }
+                }
+            });
+
+            updateKnowledgeGraph();
+        }
+
+        // Update Nodes and Edges based on Filtered Data
+        function updateKnowledgeGraph() {
+            if (!networkNodes || !networkEdges) return;
+
+            networkNodes.clear();
+            networkEdges.clear();
+
+            const addedNodes = new Set();
+            const edges = [];
+
+            filteredData.forEach(item => {
+                // 1. Artwork Node
+                if (!addedNodes.has(item.id)) {
+                    networkNodes.add({
+                        id: item.id,
+                        label: item.title[currentLang],
+                        shape: 'diamond',
+                        size: 19,
+                        color: {
+                            background: nodeColors.artwork.bg,
+                            border: nodeColors.artwork.border,
+                            highlight: { background: nodeColors.artwork.highlight, border: '#ffffff' }
+                        },
+                        title: `<b>${item.title[currentLang]}</b><br>ID: ${item.accessionNo}`
+                    });
+                    addedNodes.add(item.id);
+                }
+
+                // 2. Artist Node
+                const artistNodeId = `artist_${item.artist.id}`;
+                if (!addedNodes.has(artistNodeId)) {
+                    networkNodes.add({
+                        id: artistNodeId,
+                        label: item.artist[currentLang],
+                        shape: 'dot',
+                        size: 14,
+                        color: {
+                            background: nodeColors.artist.bg,
+                            border: nodeColors.artist.border,
+                            highlight: { background: nodeColors.artist.highlight, border: '#ffffff' }
+                        }
+                    });
+                    addedNodes.add(artistNodeId);
+                }
+                edges.push({ from: item.id, to: artistNodeId, label: 'created by' });
+
+                // 3. Classification Node
+                const classNodeId = `class_${item.classification.id}`;
+                if (!addedNodes.has(classNodeId)) {
+                    networkNodes.add({
+                        id: classNodeId,
+                        label: item.classification[currentLang],
+                        shape: 'dot',
+                        size: 13,
+                        color: {
+                            background: nodeColors.classification.bg,
+                            border: nodeColors.classification.border,
+                            highlight: { background: nodeColors.classification.highlight, border: '#ffffff' }
+                        }
+                    });
+                    addedNodes.add(classNodeId);
+                }
+                edges.push({ from: item.id, to: classNodeId, label: 'classified as' });
+
+                // 4. Medium Node
+                const mediumNodeId = `medium_${item.medium.id}`;
+                if (!addedNodes.has(mediumNodeId)) {
+                    networkNodes.add({
+                        id: mediumNodeId,
+                        label: item.medium[currentLang],
+                        shape: 'dot',
+                        size: 12,
+                        color: {
+                            background: nodeColors.medium.bg,
+                            border: nodeColors.medium.border,
+                            highlight: { background: nodeColors.medium.highlight, border: '#ffffff' }
+                        }
+                    });
+                    addedNodes.add(mediumNodeId);
+                }
+                edges.push({ from: item.id, to: mediumNodeId, label: 'made of' });
+            });
+
+            networkEdges.add(edges);
+        }
+
+        function togglePhysics() {
+            physicsEnabled = !physicsEnabled;
+            network.setOptions({ physics: { enabled: physicsEnabled } });
+            const btnText = document.getElementById('physics-btn-text');
+            btnText.textContent = physicsEnabled ? i18n[currentLang].physicsOn : i18n[currentLang].physicsOff;
+        }
+
+        function resetGraphView() {
+            if (network) {
+                network.fit({ animation: { duration: 800, easingFunction: 'easeInOutQuad' } });
+            }
+        }
+
+        // Initialize Chart.js Data Visualizations
+        function initCharts() {
+            const textColor = currentTheme === 'dark' ? '#94a3b8' : '#1e293b';
+            const gridColor = currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+
+            const ctx1 = document.getElementById('artistChart').getContext('2d');
+            artistChart = new Chart(ctx1, {
+                type: 'bar',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: textColor, font: { family: 'Prompt, Inter', weight: 'bold' } }, grid: { color: gridColor } },
+                        y: { ticks: { color: textColor, stepSize: 1, font: { weight: 'bold' } }, grid: { color: gridColor }, beginAtZero: true }
+                    }
+                }
+            });
+
+            const ctx2 = document.getElementById('classificationChart').getContext('2d');
+            classificationChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: textColor, font: { family: 'Prompt, Inter', size: 11, weight: 'bold' } }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+
+            updateCharts();
+        }
+
+        // Update Charts based on Filtered Data
+        function updateCharts() {
+            if (!artistChart || !classificationChart) return;
+
+            const artistCounts = {};
+            filteredData.forEach(item => {
+                const name = item.artist[currentLang];
+                artistCounts[name] = (artistCounts[name] || 0) + 1;
+            });
+
+            const artistLabels = Object.keys(artistCounts);
+            const artistData = Object.values(artistCounts);
+
+            artistChart.data = {
+                labels: artistLabels,
+                datasets: [{
+                    data: artistData,
+                    backgroundColor: [
+                        '#8b5cf6', '#ec4899', '#3b82f6', '#06b6d4',
+                        '#a855f7', '#f43f5e', '#60a5fa', '#22d3ee'
+                    ],
+                    borderRadius: 8
+                }]
+            };
+            artistChart.update();
+
+            const classCounts = {};
+            filteredData.forEach(item => {
+                const name = item.classification[currentLang];
+                classCounts[name] = (classCounts[name] || 0) + 1;
+            });
+
+            classificationChart.data = {
+                labels: Object.keys(classCounts),
+                datasets: [{
+                    data: Object.values(classCounts),
+                    backgroundColor: ['#8b5cf6', '#ec4899', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b'],
+                    borderWidth: 0
+                }]
+            };
+            classificationChart.update();
+        }
+
+        // Open Artwork Detail Modal View
+        function openModal(artworkId) {
+            const item = artworkData.find(a => a.id === artworkId);
+            if (!item) return;
+
+            document.getElementById('modal-accession').textContent = item.accessionNo;
+            document.getElementById('modal-year-badge').textContent = item.year;
+
+            document.getElementById('modal-title-th').textContent = item.title.th;
+            document.getElementById('modal-title-en').textContent = item.title.en;
+
+            document.getElementById('modal-artist').textContent = item.artist[currentLang];
+            document.getElementById('modal-class').textContent = item.classification[currentLang];
+            document.getElementById('modal-medium').textContent = item.medium[currentLang];
+            document.getElementById('modal-dept').textContent = item.department[currentLang];
+            document.getElementById('modal-dim').textContent = item.dimensions;
+            document.getElementById('modal-desc').textContent = item.description[currentLang];
+
+            const tagsContainer = document.getElementById('modal-node-tags');
+            tagsContainer.innerHTML = `
+                <span class="px-3 py-1 rounded-lg text-[11px] font-extrabold bg-blue-500/10 dark:bg-blue-500/20 text-blue-800 dark:text-blue-300 border border-blue-500/30">👤 ${item.artist[currentLang]}</span>
+                <span class="px-3 py-1 rounded-lg text-[11px] font-extrabold bg-purple-500/10 dark:bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-500/30">📐 ${item.classification[currentLang]}</span>
+                <span class="px-3 py-1 rounded-lg text-[11px] font-extrabold bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-900 dark:text-cyan-300 border border-cyan-500/30">🎨 ${item.medium[currentLang]}</span>
+                <span class="px-3 py-1 rounded-lg text-[11px] font-extrabold bg-pink-500/10 dark:bg-pink-500/20 text-pink-800 dark:text-pink-300 border border-pink-500/30">🏛️ ${item.department[currentLang]}</span>
+            `;
+
+            const modal = document.getElementById('detail-modal');
+            const container = document.getElementById('modal-container');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                container.classList.remove('scale-95');
+                container.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('detail-modal');
+            const container = document.getElementById('modal-container');
+
+            modal.classList.add('opacity-0');
+            container.classList.remove('scale-100');
+            container.classList.add('scale-95');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        document.getElementById('detail-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'detail-modal') closeModal();
+        });
+
+        // Toggle Language Handler (TH / EN)
+        function toggleLanguage() {
+            currentLang = currentLang === 'th' ? 'en' : 'th';
+            localStorage.setItem('moma-lang', currentLang);
+            updateLanguageUI();
+        }
+
+        function updateLanguageUI() {
+            document.getElementById('lang-flag').textContent = currentLang === 'th' ? '🇹🇭' : '🇬🇧';
+
+            document.getElementById('filter-artist').options[0].textContent = i18n[currentLang].filterArtist;
+            document.getElementById('filter-classification').options[0].textContent = i18n[currentLang].filterClassification;
+            document.getElementById('filter-medium').options[0].textContent = i18n[currentLang].filterMedium;
+            document.getElementById('filter-department').options[0].textContent = i18n[currentLang].filterDepartment;
+
+            const lang = i18n[currentLang];
+            document.getElementById('site-title').textContent = lang.siteTitle;
+            document.getElementById('site-subtitle').textContent = lang.siteSub;
+            document.getElementById('search-input').placeholder = lang.searchPlaceholder;
+            document.getElementById('reset-filters-btn').textContent = lang.resetFilters;
+            document.getElementById('active-filters-text').textContent = lang.activeFiltersText;
+
+            document.getElementById('showing-text').textContent = lang.showingText;
+            document.getElementById('from-total-text').textContent = lang.fromTotalText;
+            document.getElementById('items-unit-text').textContent = lang.itemsUnitText;
+
+            document.getElementById('kpi-artworks-label').textContent = lang.kpiArtworks;
+            document.getElementById('kpi-artists-label').textContent = lang.kpiArtists;
+            document.getElementById('kpi-mediums-label').textContent = lang.kpiMediums;
+            document.getElementById('kpi-class-label').textContent = lang.kpiClassifications;
+
+            document.getElementById('graph-title').textContent = lang.graphTitle;
+            document.getElementById('graph-subtitle').textContent = lang.graphSub;
+            document.getElementById('legend-artwork').textContent = lang.legendArtwork;
+            document.getElementById('legend-artist').textContent = lang.legendArtist;
+            document.getElementById('legend-class').textContent = lang.legendClass;
+            document.getElementById('legend-medium').textContent = lang.legendMedium;
+
+            document.getElementById('physics-btn-text').textContent = physicsEnabled ? lang.physicsOn : lang.physicsOff;
+            document.getElementById('recenter-btn-text').textContent = lang.recenterBtn;
+
+            document.getElementById('chart-artist-title').textContent = lang.chartArtistTitle;
+            document.getElementById('chart-class-title').textContent = lang.chartClassTitle;
+
+            document.getElementById('table-header-title').textContent = lang.tableHeaderTitle;
+            document.getElementById('per-page-label').textContent = lang.perPageLabel;
+
+            document.getElementById('th-accession').textContent = lang.thAccession;
+            document.getElementById('th-title').textContent = lang.thTitle;
+            document.getElementById('th-artist').textContent = lang.thArtist;
+            document.getElementById('th-class').textContent = lang.thClass;
+            document.getElementById('th-medium').textContent = lang.thMedium;
+            document.getElementById('th-year').textContent = lang.thYear;
+            document.getElementById('th-action').textContent = lang.thAction;
+
+            document.getElementById('modal-header-title').textContent = lang.modalHeaderTitle;
+            document.getElementById('lbl-modal-artist').textContent = lang.lblModalArtist;
+            document.getElementById('lbl-modal-class').textContent = lang.lblModalClass;
+            document.getElementById('lbl-modal-medium').textContent = lang.lblModalMedium;
+            document.getElementById('lbl-modal-dept').textContent = lang.lblModalDept;
+            document.getElementById('lbl-modal-dim').textContent = lang.lblModalDim;
+            document.getElementById('lbl-modal-desc').textContent = lang.lblModalDesc;
+            document.getElementById('lbl-modal-tags').textContent = lang.lblModalTags;
+
+            renderUI();
+            updateCharts();
+            updateKnowledgeGraph();
+            renderActiveChips();
+        }
+
+        // Dark / Light Theme Toggle Handler with LocalStorage Persistence
+        function toggleTheme() {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('moma-theme', currentTheme);
+            applyInitialTheme();
+
+            // Sync Graph Node Colors & Edges
+            if (network) {
+                network.setOptions({
+                    nodes: {
+                        font: { color: currentTheme === 'dark' ? '#f8fafc' : '#0f172a' }
+                    },
+                    edges: {
+                        color: { color: currentTheme === 'dark' ? 'rgba(139, 92, 246, 0.4)' : 'rgba(139, 92, 246, 0.6)' }
+                    }
+                });
+            }
+
+            // Sync Chart Text & Grid Colors
+            if (artistChart && classificationChart) {
+                const textColor = currentTheme === 'dark' ? '#94a3b8' : '#1e293b';
+                const gridColor = currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+
+                artistChart.options.scales.x.ticks.color = textColor;
+                artistChart.options.scales.x.grid.color = gridColor;
+                artistChart.options.scales.y.ticks.color = textColor;
+                artistChart.options.scales.y.grid.color = gridColor;
+                artistChart.update();
+
+                classificationChart.options.plugins.legend.labels.color = textColor;
+                classificationChart.update();
+            }
+        }
+    </script>
+</body>
+</html>
